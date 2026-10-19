@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>GB Web</title>
+<style>
+  :root {
+    --shell: #c9c5ba;         /* plástico crema/gris de la carcasa */
+    --shell-dark: #a8a398;    /* sombras/bordes de la carcasa */
+    --shell-shadow: #8d8879;
+    --page-bg: #1c1c20;
+    --screen-bezel: #17301f;  /* marco verde oscuro alrededor de la pantalla */
+    --lcd: #9bbc0f;
+    --dpad: #2c2b2f;          /* cruceta, casi negro */
+    --dpad-active: #46454a;
+    --accent: #7c3a4a;        /* granate de los botones A/B, como el original */
+    --accent-active: #96475a;
+    --meta: #6b6a72;          /* start/select, gris violáceo */
+    --meta-active: #83828c;
+    --led-off: #5a2a2a;
+    --led-on: #ff4d3d;
+    --label: #4a4740;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;   /* evita el menu/lupa de "mantener pulsado" en iOS */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--page-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  #app {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ---- Carcasa ---- */
+  #gb-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, var(--shell), var(--shell-dark));
+    border-radius: 18px 18px 0 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  #top-deco {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px 4px;
+  }
+
+  #led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow: inset 0 0 1px rgba(0,0,0,0.4);
+  }
+  #led.on {
+    background: var(--led-on);
+    box-shadow: 0 0 4px 1px var(--led-on);
+  }
+
+  #top-deco .brand {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--label);
+    opacity: 0.55;
+  }
+
+  #screen-wrap {
+    margin: 4px 22px 0;
+    background: var(--screen-bezel);
+    border-radius: 10px 10px 26px 10px;
+    padding: 16px 16px 22px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 2px 3px rgba(0,0,0,0.15);
+    position: relative;
+  }
+
+  /* rayita decorativa multicolor, guiño a la franja clásica, sin copiar el logo */
+  #accent-stripe {
+    position: absolute;
+    bottom: 6px;
+    left: 16px;
+    width: 46px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #e0574f, #ecb43e, #4fa8e0, #6dbf6a);
+    opacity: 0.85;
+  }
+
+  #gb-canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 160 / 144;
+    background: var(--lcd);
+    border-radius: 3px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -webkit-user-drag: none;
+    touch-action: none;
+  }
+
+  /* Solo se usa si algo falla al cargar el ROM; el resto del tiempo está oculto. */
+  #hint {
+    display: none;
+    text-align: center;
+    color: var(--label);
+    font-size: 12px;
+    padding: 10px 24px 0;
+  }
+  #hint.show { display: block; }
+
+  #controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 18px 22px calc(18px + env(safe-area-inset-bottom));
+    gap: 20px;
+    user-select: none;
+  }
+
+  .pad-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* D-pad */
+  #dpad {
+    position: relative;
+    width: 144px;
+    height: 144px;
+  }
+  .dpad-btn {
+    position: absolute;
+    background: var(--dpad);
+    border: none;
+  }
+  .dpad-btn.active { background: var(--dpad-active); }
+  #dpad-up    { top: 0;    left: 48px; width: 48px; height: 48px; border-radius: 6px 6px 0 0; }
+  #dpad-down  { bottom: 0; left: 48px; width: 48px; height: 48px; border-radius: 0 0 6px 6px; }
+  #dpad-left  { top: 48px; left: 0;    width: 48px; height: 48px; border-radius: 6px 0 0 6px; }
+  #dpad-right { top: 48px; right: 0;   width: 48px; height: 48px; border-radius: 0 6px 6px 0; }
+  #dpad-center{ top: 48px; left: 48px; width: 48px; height: 48px; background: var(--dpad); }
+
+  /* A/B */
+  #face-buttons {
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+    transform: rotate(-20deg);
+  }
+  .face-btn-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  #btn-b-wrap { margin-top: 26px; }
+  .face-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+  }
+  .face-btn.active { background: var(--accent-active); }
+  .face-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--label);
+    opacity: 0.7;
+  }
+
+  /* Start/Select + toggle rápido */
+  #meta-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 22px;
+    transform: rotate(-20deg);
+  }
+  .meta-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .meta-btn {
+    width: 56px;
+    height: 18px;
+    border-radius: 10px;
+    background: var(--meta);
+    border: none;
+  }
+  .meta-btn.active { background: var(--meta-active); }
+  .meta-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--label);
+    opacity: 0.65;
+  }
+
+  #fast-toggle {
+    width: 40px;
+    height: 22px;
+    border-radius: 12px;
+    background: var(--meta);
+    border: none;
+    position: relative;
+  }
+  #fast-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #efece4;
+    transition: transform 0.15s ease;
+  }
+  #fast-toggle.on {
+    background: var(--led-on);
+  }
+  #fast-toggle.on::after {
+    transform: translateX(18px);
+  }
+
+  /* Rejilla del altavoz, decorativa */
+  #speaker {
+    align-self: flex-end;
+    width: 54px;
+    height: 40px;
+    margin-top: -6px;
+    background-image: radial-gradient(circle, var(--shell-shadow) 1.6px, transparent 1.6px);
+    background-size: 8px 8px;
+    transform: rotate(-20deg);
+    opacity: 0.8;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="gb-shell">
+    <div id="top-deco">
+      <div id="led"></div>
+      <span class="brand">POWER</span>
+    </div>
+
+    <div id="screen-wrap">
+      <canvas id="gb-canvas" width="160" height="144"></canvas>
+      <div id="accent-stripe"></div>
+    </div>
+    <p id="hint"></p>
+
+    <div id="controls">
+      <div class="pad-row">
+        <div id="dpad">
+          <button class="dpad-btn" id="dpad-up"    data-btn="6"></button>
+          <button class="dpad-btn" id="dpad-down"  data-btn="7"></button>
+          <button class="dpad-btn" id="dpad-left"  data-btn="5"></button>
+          <button class="dpad-btn" id="dpad-right" data-btn="4"></button>
+          <div class="dpad-btn" id="dpad-center"></div>
+        </div>
+        <div id="face-buttons">
+          <div class="face-btn-wrap" id="btn-b-wrap">
+            <button class="face-btn" id="btn-b" data-btn="1"></button>
+            <span class="face-label">B</span>
+          </div>
+          <div class="face-btn-wrap">
+            <button class="face-btn" id="btn-a" data-btn="0"></button>
+            <span class="face-label">A</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="meta-row">
+        <div class="meta-wrap">
+          <button class="meta-btn" id="btn-select" data-btn="2"></button>
+          <span class="meta-label">SELECT</span>
+        </div>
+        <div class="meta-wrap">
+          <button class="meta-btn" id="btn-start"  data-btn="3"></button>
+          <span class="meta-label">START</span>
+        </div>
+        <div class="meta-wrap">
+          <button id="fast-toggle" aria-label="Modo rapido x2"></button>
+          <span class="meta-label">2X</span>
+        </div>
+      </div>
+
+      <div id="speaker"></div>
+    </div>
+  </div>
+</div>
+
+<script src="gb.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
